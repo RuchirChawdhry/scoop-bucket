@@ -16,7 +16,7 @@ if ($pending.Count -gt 0) {
 }
 
 $bucket = (Resolve-Path './bucket').Path
-$checkver = Join-Path $PSScriptRoot '..\.scoop-core\bin\checkver.ps1'
+$checkver = Join-Path $env:USERPROFILE 'scoop\apps\scoop\current\bin\checkver.ps1'
 if (!(Test-Path -LiteralPath $checkver)) { throw "Missing Scoop checkver.ps1: $checkver" }
 $files = @(Get-ChildItem $bucket -Filter '*.json' -File | Sort-Object Name)
 $before = @{}
@@ -47,61 +47,65 @@ foreach ($app in $changed) {
 $problems = @($checkErrors)
 $tests = @{}
 
-# All validation runs in this SAME ubuntu-slim job, without invoking Windows installers.
+# Offline tests and Windows installation checks share this single Windows job.
 & python -m unittest discover -s tests -v
 $offlinePassed = ($LASTEXITCODE -eq 0)
 if (!$offlinePassed) { $problems += 'Offline manifest tests failed.' }
 
-# Scoop caches downloaded installers when calculating a hash. Inspect them, if present,
-# instead of downloading large Windows installers a second time on a 15-minute runner.
-$cacheFiles = @()
-if ($env:SCOOP_CACHE -and (Test-Path -LiteralPath $env:SCOOP_CACHE)) {
-    $cacheFiles = @(Get-ChildItem -LiteralPath $env:SCOOP_CACHE -File -ErrorAction SilentlyContinue)
-}
+& scoop install 7zip
+$sevenZipReady = ($LASTEXITCODE -eq 0)
+if (!$sevenZipReady) { $problems += 'Could not install 7zip for extraction tests.' }
+
 foreach ($app in $changed) {
-    $tests[$app] = 'PASS (manifest), SKIP (archive not cached; installer not executed)'
-    $expected = @()
-    if ($after[$app].Contains('shortcuts')) {
-        foreach ($shortcut in $after[$app]['shortcuts']) { $expected += [string]$shortcut[0] }
-    }
-    if ($after[$app].Contains('bin')) {
-        foreach ($item in @($after[$app]['bin'])) {
-            if ($item -is [array]) { $expected += [string]$item[0] }
-            else { $expected += [string]$item }
-        }
-    }
-    if ($expected.Count -eq 0) {
-        $tests[$app] = 'FAIL (no executable/shortcut)'
-        $problems += "$app has no declared executable."
+    if (!$sevenZipReady) {
+        $tests[$app] = 'SKIPPED (7zip unavailable)'
         continue
     }
-    $hashes = @()
-    if ($after[$app].Contains('architecture')) {
-        foreach ($arch in $after[$app]['architecture'].Keys) {
-            $hashes += [string]$after[$app]['architecture'][$arch]['hash']
+    $installed = $false
+    try {
+        Write-Host "Installing updated $app from local manifest..."
+        & scoop install "./bucket/$app.json"
+        if ($LASTEXITCODE -ne 0) { throw "scoop install failed ($LASTEXITCODE)" }
+        $installed = $true
+
+        $prefixLines = @(scoop prefix $app)
+        if ($LASTEXITCODE -ne 0 -or $prefixLines.Count -eq 0) { throw 'scoop prefix failed' }
+        $prefix = $prefixLines[-1].Trim()
+        if (!(Test-Path -LiteralPath $prefix -PathType Container)) {
+            throw "Install directory missing: $prefix"
         }
-    } else {
-        $hashes += [string]$after[$app]['hash']
-    }
-    foreach ($hash in $hashes) {
-        if ($hash -notmatch '^[0-9a-fA-F]{64}$') {
-            $tests[$app] = 'FAIL (invalid SHA-256)'
-            $problems += "$app contains an invalid SHA-256."
+
+        $expected = @()
+        if ($after[$app].Contains('shortcuts')) {
+            foreach ($shortcut in $after[$app]['shortcuts']) {
+                $expected += [string]$shortcut[0]
+            }
         }
-    }
-    # Optional stronger archive test for packages already cached during checkver.
-    # A cache miss is not a failure: some manifests obtain hashes from upstream metadata.
-    if ($app -notin @('todoist', 'toggl', 'wispr-flow', 'directorymonitor')) { continue }
-    $cached = @($cacheFiles | Where-Object { $_.Name -like "*$app*" })
-    foreach ($file in $cached) {
-        if ($file.Extension -notin @('.zip', '.7z', '.exe', '.nupkg')) { continue }
-        $listing = & 7z l $file.FullName 2>&1
-        if ($LASTEXITCODE -ne 0) {
-            $problems += "$app: cached archive listing failed ($($file.Name))"
-            $tests[$app] = 'FAIL (cached archive could not be listed)'
-        } else {
-            $tests[$app] = 'PASS (manifest + cached archive); installer not executed'
-            Write-Host "Archive readable for $app : $($file.Name)"
+        if ($after[$app].Contains('bin')) {
+            foreach ($item in @($after[$app]['bin'])) {
+                if ($item -is [array]) { $expected += [string]$item[0] }
+                else { $expected += [string]$item }
+            }
+        }
+        if ($expected.Count -eq 0) { throw 'No executable declared in shortcuts or bin.' }
+        foreach ($relative in ($expected | Select-Object -Unique)) {
+            $exe = Join-Path $prefix ($relative -replace '/', '\')
+            if (!(Test-Path -LiteralPath $exe -PathType Leaf)) {
+                throw "Expected executable missing: $exe"
+            }
+        }
+        $tests[$app] = 'PASS (install and executable)'
+        Write-Host "Verified $app in $prefix"
+    } catch {
+        $tests[$app] = 'FAIL'
+        $problems += ('{0}: {1}' -f $app, $_.Exception.Message)
+    } finally {
+        if ($installed) {
+            & scoop uninstall $app | Out-Host
+            if ($LASTEXITCODE -ne 0) {
+                $tests[$app] = 'FAIL (uninstall)'
+                $problems += "$app: scoop uninstall exited $LASTEXITCODE"
+            }
         }
     }
 }
@@ -111,7 +115,7 @@ $report = @(
     '## Proposed Scoop manifest updates', '',
     ('Workflow run: https://github.com/{0}/actions/runs/{1}' -f $repo, $env:GITHUB_RUN_ID), '',
     '### Changes and validation results', '',
-    '| App | Previous version | Proposed version | Linux validation |',
+    '| App | Previous version | Proposed version | Windows validation |',
     '| --- | --- | --- | --- |'
 )
 foreach ($app in $changed) {
@@ -119,8 +123,8 @@ foreach ($app in $changed) {
 }
 $report += @('', '### Validation', '',
     ('- Offline manifest tests: {0}' -f $(if ($offlinePassed) { 'PASS' } else { 'FAIL' })),
-    '- Changed manifests: validated executable declarations, SHA-256 format, and any downloaded archive present in Scoop cache.',
-    '- This runs on ubuntu-slim: Windows executables are NOT installed or launched; archive checks are opportunistic if files are cached.', '',
+    '- Changed apps: installed with Scoop, checked for expected executables, and uninstalled on Windows x64.',
+    '- Unchanged apps are not reinstalled; graphical launch and ARM64 execution are not tested.', '',
     '### Upstream download URLs and SHA-256', '')
 foreach ($app in $changed) {
     $report += "#### $app"
