@@ -59,7 +59,7 @@ if ($env:SCOOP_CACHE -and (Test-Path -LiteralPath $env:SCOOP_CACHE)) {
     $cacheFiles = @(Get-ChildItem -LiteralPath $env:SCOOP_CACHE -File -ErrorAction SilentlyContinue)
 }
 foreach ($app in $changed) {
-    $tests[$app] = 'PASS (manifest tests); installer not executed'
+    $tests[$app] = 'PASS (manifest), SKIP (archive not cached; installer not executed)'
     $expected = @()
     if ($after[$app].Contains('shortcuts')) {
         foreach ($shortcut in $after[$app]['shortcuts']) { $expected += [string]$shortcut[0] }
@@ -100,6 +100,7 @@ foreach ($app in $changed) {
             $problems += "$app: cached archive listing failed ($($file.Name))"
             $tests[$app] = 'FAIL (cached archive could not be listed)'
         } else {
+            $tests[$app] = 'PASS (manifest + cached archive); installer not executed'
             Write-Host "Archive readable for $app : $($file.Name)"
         }
     }
