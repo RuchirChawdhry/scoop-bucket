@@ -33,6 +33,6 @@ jobs:
         env:
           SCOOP: ${{ runner.temp }}/scoop-root
           SCOOP_CACHE: ${{ runner.temp }}/scoop-cache
-          GH_TOKEN: \${{ github.token }}
-          SCOOP_GH_TOKEN: \${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
+          SCOOP_GH_TOKEN: ${{ github.token }}
         run: ./scripts/update.ps1
