@@ -17,21 +17,22 @@ concurrency:
 
 jobs:
   update-and-validate:
-    runs-on: windows-latest
-    timeout-minutes: 90
+    runs-on: ubuntu-slim
+    timeout-minutes: 14
     steps:
       - name: Checkout bucket
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Install Scoop
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
-          Invoke-RestMethod 'https://get.scoop.sh' -OutFile scoop-install.ps1
-          ./scoop-install.ps1 -RunAsAdmin
-          "$env:USERPROFILE\scoop\shims" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+      - name: Checkout Scoop's version-checking scripts
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ScoopInstaller/Scoop
+          path: .scoop-core
+          persist-credentials: false
       - name: Check, validate and open update pull request
         shell: pwsh
         env:
+          SCOOP: ${{ runner.temp }}/scoop-root
+          SCOOP_CACHE: ${{ runner.temp }}/scoop-cache
           GH_TOKEN: \${{ github.token }}
           SCOOP_GH_TOKEN: \${{ github.token }}
         run: ./scripts/update.ps1
