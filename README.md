@@ -22,24 +22,33 @@ scoop update '*'
 
 ## Automatic maintenance: review first
 
-**Actions > Excavator** checks for new versions every **Monday and Friday at 08:30 IST** (03:00 UTC). It also has a manual **Run workflow** option. There is **one Windows job** per invocation:
+**Actions > Excavator** runs every **Monday and Friday at 08:30 IST** (03:00 UTC), or manually with **Run workflow**. One lightweight **`ubuntu-slim` job** performs the entire maintenance pass:
 
-1. Scoop's **native `checkver.ps1 -Update`** updates manifest versions and SHA-256 hashes in the runner's checkout.
-2. If nothing changed, the job exits without a commit or pull request.
-3. If manifests changed, the **same Windows job** runs the Python manifest tests and installs, verifies, and uninstalls **only the changed apps**.
-4. The job pushes changed JSON files to a new **`automation/scoop-<run-id>`** branch **in this repository**, then opens a **pull request targeting this repository's `main` branch**.
-5. Each PR contains previous/new versions, upstream installer URLs, per-architecture SHA-256 hashes, the verification outcomes, any warnings, and a link to the Actions run. **Nothing is merged automatically.**
-6. If a previous auto-update PR remains open, the job skips the next proposal. Merge or close that PR before another update; this avoids duplicate pending PRs.
+1. It checks out this bucket and the public Scoop core source (read-only) to use Scoop's native PowerShell `checkver.ps1 -Update`.
+2. It checks upstream releases and updates versions, download URLs and SHA-256 hashes in the job's temporary checkout.
+3. If nothing changed, it finishes without creating a commit or pull request.
+4. If something changed, it runs Python's offline manifest tests, validates declared executable paths and SHA-256 formats, and inspects any installer archives already downloaded into Scoop's cache (using 7-Zip). **Windows installers are not executed on Linux.**
+5. It pushes updated JSON files to a new `automation/scoop-<run-id>` branch **in this repository** and creates a detailed pull request targeting **this repository's `main`**. The PR contains version comparisons, source URLs, hashes, validation results, errors and a run link. **Nothing is automatically merged.**
+6. If a previous update PR is open, the next scheduled run skips opening a duplicate. Merge or close the existing PR to resume proposals.
 
-The old separate validation workflow is deliberately removed. There are no `push`, `pull_request`, or `workflow_run` triggers. Update and validation happen in the **same billable job**, avoiding separately rounded runner minutes.
+There is **one job per run**, and only two triggers: the Monday/Friday schedule and optional manual dispatch. No push, pull request, or workflow-completion triggers. There is no separate validator job to round up minutes.
+
+### Runner considerations
+
+`ubuntu-slim` provides 1 vCPU, 5 GB RAM and a 15-minute hard time limit. This workflow sets a 14-minute limit. It includes PowerShell, Python, GitHub CLI and 7-Zip; no Windows virtual machine or Scoop installer setup is required. Scoop's version-checking scripts are Windows-oriented, so Linux compatibility must be verified on the first actual workflow run. A metadata-only check or cached-archive listing **does not prove a Windows installation succeeds**. Windows executable launch, uninstall behavior and ARM64 execution are not tested. Very large upstream downloads may exceed the runner time limit.
 
 ### Authentication and permissions
 
-GitHub supplies a **temporary `GITHUB_TOKEN`** scoped to this repository. The workflow requests only `contents: write` (to push a proposal branch) and `pull-requests: write` (to create a PR). **It never writes to ScoopInstaller's official repositories.** No personal access token is needed.
+GitHub automatically provides a short-lived, **repository-scoped `GITHUB_TOKEN`** for the workflow. It has `contents: write` (push update branch) and `pull-requests: write` (create proposal) **only on this repository**. It cannot push to Scoop's official repositories. No personal access token is required.
 
-**Required GitHub setting:** Go to **Settings > Actions > General > Workflow permissions** and enable **Allow GitHub Actions to create and approve pull requests**. New personal repositories generally disable this by default. The workflow creates PRs but never approves or merges them.
+Enable **Settings > Actions > General > Workflow permissions > Allow GitHub Actions to create and approve pull requests**. The workflow does **not** approve or merge PRs.
 
-To upgrade apps on your own PC, independently run `scoop update` and then `scoop update todoist` (or whichever apps you want).
+To update locally installed apps after merging an update PR:
+
+```powershell
+scoop update
+scoop update todoist wispr-flow
+```
 
 ## Packaging notes
 
@@ -52,7 +61,7 @@ To upgrade apps on your own PC, independently run `scoop update` and then `scoop
 | Directory Monitor | Vendor portable ZIP with persisted `Data` directory |
 | yq | Standalone native Windows binaries, including ARM64 |
 
-These are personal-use recipes. Upstream installer contents, URLs, feed layouts, auto-updaters, and vendor terms can change. A successful version/checksum update does **not** prove the GUI app launches. The Windows smoke tests validate extraction on x64 only; ARM64 downloads are not executed. Only **changed apps** are installation-tested during an update run.
+These are personal-use recipes. Upstream installer contents, URLs, feed layouts, auto-updaters, and vendor terms can change. A successful version/checksum update does **not** prove the GUI app launches. Ubuntu verification checks manifest structure and cached archives where available. **Windows installation tests no longer run**; GUI functionality and ARM64 execution remain untested.
 
 ### Known limitations
 
@@ -67,4 +76,4 @@ These are personal-use recipes. Upstream installer contents, URLs, feed layouts,
 python -m unittest discover -s tests -v
 ```
 
-The updater continues checking other manifests after one check fails. Any failures are included in the proposed PR, and the job is marked failed after the PR is created. If no manifests change but a check fails, the job fails without opening a PR.
+The updater continues checking remaining manifests after an individual version check fails. If any manifest changes, failures are included in the proposal report and the job is marked failed after PR creation. If no manifest changes but an upstream check fails, the job fails without creating a PR.
