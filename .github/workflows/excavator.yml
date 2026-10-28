@@ -3,8 +3,8 @@ name: Excavator
 on:
   workflow_dispatch:
   schedule:
-    # Monday and Friday, 03:00 UTC = 08:30 IST
-    - cron: '0 3 * * 1,5'
+    # Daily at 03:00 UTC = 08:30 IST
+    - cron: '0 3 * * *'
 
 # Only this repository; open a PR instead of pushing to main.
 permissions:
@@ -17,8 +17,8 @@ concurrency:
 
 jobs:
   update-and-validate:
-    runs-on: windows-latest
-    timeout-minutes: 90
+    runs-on: windows-2025
+    timeout-minutes: 60
     steps:
       - name: Checkout bucket
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -32,6 +32,6 @@ jobs:
       - name: Check, validate and open update pull request
         shell: pwsh
         env:
-          GH_TOKEN: \${{ github.token }}
-          SCOOP_GH_TOKEN: \${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
+          SCOOP_GH_TOKEN: ${{ github.token }}
         run: ./scripts/update.ps1
