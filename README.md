@@ -1,15 +1,17 @@
 # scoop-bucket
 
-Personal convenience [Scoop](https://scoop.sh/) bucket. These manifests reference vendors' downloads; no installers are hosted here.
+Personal [Scoop](https://scoop.sh/) bucket (local alias: `ruchir`). These manifests reference vendors' downloads; no installers are hosted here.
 
 ## Install
 
 ```powershell
-scoop bucket add convenience https://github.com/RuchirChawdhry/scoop-bucket
-scoop install convenience/todoist convenience/toggl convenience/wispr-flow
+scoop bucket add ruchir https://github.com/RuchirChawdhry/scoop-bucket
+scoop install ruchir/todoist ruchir/toggl ruchir/wispr-flow
 # Other manifests:
-scoop install convenience/freefilesync convenience/directorymonitor convenience/yq
+scoop install ruchir/freefilesync ruchir/directorymonitor ruchir/yq
 ```
+
+The name `ruchir` is a local Scoop bucket alias; the GitHub repository remains `RuchirChawdhry/scoop-bucket`. If you already registered it as `convenience`, you can add `ruchir` as above. Do not remove `convenience` until you have accounted for any apps installed from that bucket, since Scoop records an app's originating bucket name.
 
 To refresh manifests and installed apps:
 
@@ -21,8 +23,8 @@ scoop update '*'
 ## Automatic maintenance
 
 - **Excavator** runs every **Monday and Friday at 08:30 IST** (03:00 UTC), and on demand via **Actions > Excavator > Run workflow**.
-- Scoop's official [GithubActions/Excavator](https://github.com/ScoopInstaller/GithubActions) checks each manifest's `checkver`, resolves `autoupdate` URLs, calculates or retrieves SHA-256 values, and commits updates directly to `main`.
-- **Validate bucket** runs offline manifest tests and, on Windows x64, installs/uninstalls the three Electron packages and confirms the extracted executables are present. It runs on regular pushes, pull requests, manual dispatch, and after Excavator completes. The `workflow_run` hook is necessary because commits made with `GITHUB_TOKEN` don't themselves trigger new `push` workflows.
+- Scoop's official [GithubActions/Excavator](https://github.com/ScoopInstaller/GithubActions) checks each manifest's `checkver`, resolves `autoupdate` URLs, calculates or retrieves SHA-256 values, and commits updated JSON files to the `main` **branch of this repository (`RuchirChawdhry/scoop-bucket`) only**. It does **not** push to Scoop's official `main` bucket or any `ScoopInstaller` repository.
+- **Validate bucket** runs **only when manually requested** from **Actions > Validate bucket > Run workflow**. It checks JSON manifests, installs/uninstalls the three Electron packages on Windows x64, and confirms the extracted executables are present. It does not run automatically after pushes or Excavator updates.
 - GitHub Actions maintains only **manifests**, not the software installed on your own PCs. Run `scoop update` locally to upgrade.
 - Allow Actions **read and write repository permissions** (Settings > Actions > General), if the automatic commits are blocked.
 
@@ -37,7 +39,7 @@ scoop update '*'
 | Directory Monitor | Vendor portable ZIP with persisted `Data` directory |
 | yq | Standalone native Windows binaries, including ARM64 |
 
-These are personal-use recipes. Upstream installer contents, URLs, feed layouts, auto-updaters, and vendor terms can change. A successful version/checksum update does **not** prove the GUI app launches. The Windows smoke tests validate extraction on x64 only; ARM64 downloads are not executed.
+These are personal-use recipes. Upstream installer contents, URLs, feed layouts, auto-updaters, and vendor terms can change. A successful version/checksum update does **not** prove the GUI app launches. The Windows smoke tests validate extraction on x64 only; ARM64 downloads are not executed. Since validation is manual-only, scheduled version updates are **not automatically installation-tested**.
 
 ### Known limitations
 
