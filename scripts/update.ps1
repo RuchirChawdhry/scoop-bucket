@@ -47,44 +47,66 @@ foreach ($app in $changed) {
 $problems = @($checkErrors)
 $tests = @{}
 
-# Tests are in the SAME Windows job as the updater.
+# Offline tests and Windows installation checks share this single Windows job.
 & python -m unittest discover -s tests -v
 $offlinePassed = ($LASTEXITCODE -eq 0)
 if (!$offlinePassed) { $problems += 'Offline manifest tests failed.' }
+
 & scoop install 7zip
 $sevenZipReady = ($LASTEXITCODE -eq 0)
-if (!$sevenZipReady) { $problems += '7zip setup failed.' }
+if (!$sevenZipReady) { $problems += 'Could not install 7zip for extraction tests.' }
 
 foreach ($app in $changed) {
-    if (!$sevenZipReady) { $tests[$app] = 'SKIPPED (7zip unavailable)'; continue }
+    if (!$sevenZipReady) {
+        $tests[$app] = 'SKIPPED (7zip unavailable)'
+        continue
+    }
+    $installed = $false
     try {
+        Write-Host "Installing updated $app from local manifest..."
         & scoop install "./bucket/$app.json"
         if ($LASTEXITCODE -ne 0) { throw "scoop install failed ($LASTEXITCODE)" }
+        $installed = $true
+
         $prefixLines = @(scoop prefix $app)
         if ($LASTEXITCODE -ne 0 -or $prefixLines.Count -eq 0) { throw 'scoop prefix failed' }
         $prefix = $prefixLines[-1].Trim()
+        if (!(Test-Path -LiteralPath $prefix -PathType Container)) {
+            throw "Install directory missing: $prefix"
+        }
+
         $expected = @()
         if ($after[$app].Contains('shortcuts')) {
-            foreach ($shortcut in $after[$app]['shortcuts']) { $expected += [string]$shortcut[0] }
-        }
-        if ($after[$app].Contains('bin')) {
-            foreach ($bin in @($after[$app]['bin'])) {
-                if ($bin -is [array]) { $expected += [string]$bin[0] }
-                else { $expected += [string]$bin }
+            foreach ($shortcut in $after[$app]['shortcuts']) {
+                $expected += [string]$shortcut[0]
             }
         }
-        if ($expected.Count -eq 0) { throw 'No executable in shortcuts or bin.' }
+        if ($after[$app].Contains('bin')) {
+            foreach ($item in @($after[$app]['bin'])) {
+                if ($item -is [array]) { $expected += [string]$item[0] }
+                else { $expected += [string]$item }
+            }
+        }
+        if ($expected.Count -eq 0) { throw 'No executable declared in shortcuts or bin.' }
         foreach ($relative in ($expected | Select-Object -Unique)) {
             $exe = Join-Path $prefix ($relative -replace '/', '\')
-            if (!(Test-Path -LiteralPath $exe -PathType Leaf)) { throw "Missing executable: $exe" }
+            if (!(Test-Path -LiteralPath $exe -PathType Leaf)) {
+                throw "Expected executable missing: $exe"
+            }
         }
-        $tests[$app] = 'PASS'
+        $tests[$app] = 'PASS (install and executable)'
+        Write-Host "Verified $app in $prefix"
     } catch {
         $tests[$app] = 'FAIL'
         $problems += ('{0}: {1}' -f $app, $_.Exception.Message)
     } finally {
-        & scoop uninstall $app | Out-Host
-        if ($LASTEXITCODE -ne 0) { Write-Warning "Uninstall of $app on the test runner returned $LASTEXITCODE" }
+        if ($installed) {
+            & scoop uninstall $app | Out-Host
+            if ($LASTEXITCODE -ne 0) {
+                $tests[$app] = 'FAIL (uninstall)'
+                $problems += "$app: scoop uninstall exited $LASTEXITCODE"
+            }
+        }
     }
 }
 
@@ -92,8 +114,8 @@ foreach ($app in $changed) {
 $report = @(
     '## Proposed Scoop manifest updates', '',
     ('Workflow run: https://github.com/{0}/actions/runs/{1}' -f $repo, $env:GITHUB_RUN_ID), '',
-    '### Changes and test results', '',
-    '| App | Previous version | Proposed version | Windows smoke test |',
+    '### Changes and validation results', '',
+    '| App | Previous version | Proposed version | Windows validation |',
     '| --- | --- | --- | --- |'
 )
 foreach ($app in $changed) {
@@ -101,8 +123,8 @@ foreach ($app in $changed) {
 }
 $report += @('', '### Validation', '',
     ('- Offline manifest tests: {0}' -f $(if ($offlinePassed) { 'PASS' } else { 'FAIL' })),
-    '- Installation tests run only for changed apps on Windows x64 (install, verify executable, uninstall).',
-    '- Unchanged apps are not reinstalled. GUI launch and ARM64 execution are not tested.', '',
+    '- Changed apps: installed with Scoop, checked for expected executables, and uninstalled on Windows x64.',
+    '- Unchanged apps are not reinstalled; graphical launch and ARM64 execution are not tested.', '',
     '### Upstream download URLs and SHA-256', '')
 foreach ($app in $changed) {
     $report += "#### $app"
