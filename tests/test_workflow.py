@@ -17,10 +17,13 @@ class WorkflowTests(unittest.TestCase):
         self.assertNotIn("pull_request:", yaml)
         self.assertNotIn("\n  push:", yaml)
 
-    def test_single_windows_job(self):
+    def test_single_ubuntu_slim_job(self):
         yaml = WORKFLOW.read_text(encoding="utf-8")
         self.assertEqual(1, yaml.count("    runs-on:"))
-        self.assertIn("runs-on: windows-latest", yaml)
+        self.assertIn("runs-on: ubuntu-slim", yaml)
+        self.assertIn("timeout-minutes: 14", yaml)
+        self.assertIn("repository: ScoopInstaller/Scoop", yaml)
+        self.assertIn("persist-credentials: false", yaml)
         self.assertIn("contents: write", yaml)
         self.assertIn("pull-requests: write", yaml)
         self.assertNotIn("ScoopInstaller/GithubActions@", yaml)
@@ -29,8 +32,10 @@ class WorkflowTests(unittest.TestCase):
         script = UPDATE.read_text(encoding="utf-8")
         self.assertIn("-Update -ThrowError", script)
         self.assertIn("python -m unittest discover -s tests -v", script)
-        self.assertIn("scoop install", script)
-        self.assertIn("scoop uninstall", script)
+        self.assertIn("SCOOP_CACHE", script)
+        self.assertIn("7z l", script)
+        self.assertNotIn("scoop install", script)
+        self.assertNotIn("scoop uninstall", script)
         self.assertIn("gh pr create", script)
         self.assertIn("automation/scoop-", script)
         self.assertIn("git push origin", script)
