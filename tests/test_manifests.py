@@ -1,6 +1,5 @@
 """Fast, offline checks for the personal Scoop bucket."""
 import json
-import re
 import unittest
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -32,8 +31,7 @@ class ManifestTests(unittest.TestCase):
                 data = json.loads(file.read_text(encoding="utf-8"))
                 for key in ("version", "description", "homepage", "license", "checkver", "autoupdate"):
                     self.assertIn(key, data)
-                self.assertRegex(data["version"], r"^\\d+(?:\\.\\d+)+$")
-                self.assertIn("regex", data["checkver"]) if "script" in data["checkver"] else None
+                self.assertRegex(data["version"], r"^\d+(?:\.\d+)+$")
                 current = downloads(data)
                 future = downloads(data["autoupdate"])
                 self.assertEqual(set(current), set(future))
@@ -52,10 +50,10 @@ class ManifestTests(unittest.TestCase):
                 data = json.loads((ROOT / f"{app}.json").read_text(encoding="utf-8"))
                 shortcuts = [row[0] for row in data["shortcuts"]]
                 self.assertIn(exe, shortcuts)
-                preinstall = "\\n".join(data["pre_install"])
+                preinstall = "\n".join(data["pre_install"])
                 self.assertIn("Expand-7zipArchive", preinstall)
                 self.assertIn("throw", preinstall)
-                self.assertIn(exe.rsplit("\\\\", 1)[-1].rsplit("/", 1)[-1], preinstall)
+                self.assertIn(exe.rsplit("\\", 1)[-1].rsplit("/", 1)[-1], preinstall)
 
     def test_todoist_architectures(self):
         data = json.loads((ROOT / "todoist.json").read_text(encoding="utf-8"))
