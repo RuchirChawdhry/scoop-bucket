@@ -20,13 +20,26 @@ scoop update
 scoop update '*'
 ```
 
-## Automatic maintenance
+## Automatic maintenance: review first
 
-- **Excavator** runs every **Monday and Friday at 08:30 IST** (03:00 UTC), and on demand via **Actions > Excavator > Run workflow**.
-- Scoop's official [GithubActions/Excavator](https://github.com/ScoopInstaller/GithubActions) checks each manifest's `checkver`, resolves `autoupdate` URLs, calculates or retrieves SHA-256 values, and commits updated JSON files to the `main` **branch of this repository (`RuchirChawdhry/scoop-bucket`) only**. It does **not** push to Scoop's official `main` bucket or any `ScoopInstaller` repository.
-- **Validate bucket** runs **only when manually requested** from **Actions > Validate bucket > Run workflow**. It checks JSON manifests, installs/uninstalls the three Electron packages on Windows x64, and confirms the extracted executables are present. It does not run automatically after pushes or Excavator updates.
-- GitHub Actions maintains only **manifests**, not the software installed on your own PCs. Run `scoop update` locally to upgrade.
-- Allow Actions **read and write repository permissions** (Settings > Actions > General), if the automatic commits are blocked.
+**Actions > Excavator** checks for new versions every **Monday and Friday at 08:30 IST** (03:00 UTC). It also has a manual **Run workflow** option. There is **one Windows job** per invocation:
+
+1. Scoop's **native `checkver.ps1 -Update`** updates manifest versions and SHA-256 hashes in the runner's checkout.
+2. If nothing changed, the job exits without a commit or pull request.
+3. If manifests changed, the **same Windows job** runs the Python manifest tests and installs, verifies, and uninstalls **only the changed apps**.
+4. The job pushes changed JSON files to a new **`automation/scoop-<run-id>`** branch **in this repository**, then opens a **pull request targeting this repository's `main` branch**.
+5. Each PR contains previous/new versions, upstream installer URLs, per-architecture SHA-256 hashes, the verification outcomes, any warnings, and a link to the Actions run. **Nothing is merged automatically.**
+6. If a previous auto-update PR remains open, the job skips the next proposal. Merge or close that PR before another update; this avoids duplicate pending PRs.
+
+The old separate validation workflow is deliberately removed. There are no `push`, `pull_request`, or `workflow_run` triggers. Update and validation happen in the **same billable job**, avoiding separately rounded runner minutes.
+
+### Authentication and permissions
+
+GitHub supplies a **temporary `GITHUB_TOKEN`** scoped to this repository. The workflow requests only `contents: write` (to push a proposal branch) and `pull-requests: write` (to create a PR). **It never writes to ScoopInstaller's official repositories.** No personal access token is needed.
+
+**Required GitHub setting:** Go to **Settings > Actions > General > Workflow permissions** and enable **Allow GitHub Actions to create and approve pull requests**. New personal repositories generally disable this by default. The workflow creates PRs but never approves or merges them.
+
+To upgrade apps on your own PC, independently run `scoop update` and then `scoop update todoist` (or whichever apps you want).
 
 ## Packaging notes
 
@@ -39,7 +52,7 @@ scoop update '*'
 | Directory Monitor | Vendor portable ZIP with persisted `Data` directory |
 | yq | Standalone native Windows binaries, including ARM64 |
 
-These are personal-use recipes. Upstream installer contents, URLs, feed layouts, auto-updaters, and vendor terms can change. A successful version/checksum update does **not** prove the GUI app launches. The Windows smoke tests validate extraction on x64 only; ARM64 downloads are not executed. Since validation is manual-only, scheduled version updates are **not automatically installation-tested**.
+These are personal-use recipes. Upstream installer contents, URLs, feed layouts, auto-updaters, and vendor terms can change. A successful version/checksum update does **not** prove the GUI app launches. The Windows smoke tests validate extraction on x64 only; ARM64 downloads are not executed. Only **changed apps** are installation-tested during an update run.
 
 ### Known limitations
 
@@ -54,4 +67,4 @@ These are personal-use recipes. Upstream installer contents, URLs, feed layouts,
 python -m unittest discover -s tests -v
 ```
 
-The scheduled updates run with `THROW_ERROR` omitted so one transient upstream failure does not prevent other manifests being processed. Review the Excavator logs after the first manual run.
+The updater continues checking other manifests after one check fails. Any failures are included in the proposed PR, and the job is marked failed after the PR is created. If no manifests change but a check fails, the job fails without opening a PR.
