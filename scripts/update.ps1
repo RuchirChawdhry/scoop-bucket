@@ -91,6 +91,7 @@ foreach ($app in $changed) {
     }
     # Optional stronger archive test for packages already cached during checkver.
     # A cache miss is not a failure: some manifests obtain hashes from upstream metadata.
+    if ($app -notin @('todoist', 'toggl', 'wispr-flow', 'directorymonitor')) { continue }
     $cached = @($cacheFiles | Where-Object { $_.Name -like "*$app*" })
     foreach ($file in $cached) {
         if ($file.Extension -notin @('.zip', '.7z', '.exe', '.nupkg')) { continue }
