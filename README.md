@@ -26,7 +26,7 @@ scoop update '*'
 
 1. Installs Scoop in the ephemeral Windows runner. Scoop's native `checkver.ps1 -Update` checks upstream versions, URLs and hashes for all six manifests.
 2. If no manifests changed, the job finishes without opening a pull request.
-3. If changes exist, the **same Windows job** runs offline Python tests and installs, verifies expected executables, and uninstalls **only the updated applications**. Failed checks are included in the proposal.
+3. If changes exist, the **same Windows job** runs offline Python tests and installs **only the updated applications**, directly from each manifest's resolved absolute JSON file path. It verifies expected executables. **No bucket registration or uninstall is needed** on the temporary runner. Failed checks are included in the proposal.
 4. It pushes updated JSON files to a new `automation/scoop-<run-id>` branch **in this repository** and creates a detailed PR targeting **this repository's `main`**. Each PR includes old/new versions, download URLs, SHA-256 hashes, validation outcomes, failures, and the Actions run URL. **Nothing merges automatically.**
 5. If a prior automated update PR remains open, the next run skips creating a duplicate. Review, merge or close that PR first.
 
@@ -38,7 +38,7 @@ The workflow has only **two triggers**, the daily schedule and optional manual d
 
 GitHub explicitly provides **free and unlimited standard GitHub-hosted runner minutes for public repositories**, including `windows-2025` (4 vCPU, 16 GB RAM). This bucket is public. The minute-rounding charges that matter for private repositories do **not** apply to these standard public-repository jobs. Larger runners, storage, concurrency and execution limits are separate.
 
-Windows extraction checks do **not** verify GUI startup or ARM64 execution, but they do test actual Scoop installation and uninstall behavior. Scheduled workflows may begin slightly later than their configured cron time if GitHub is busy.
+Windows extraction checks do **not** verify GUI startup or ARM64 execution, but they do test actual Scoop installation behavior and expected executable locations. Scheduled workflows may begin slightly later than their configured cron time if GitHub is busy.
 
 ### Authentication and permissions
 
