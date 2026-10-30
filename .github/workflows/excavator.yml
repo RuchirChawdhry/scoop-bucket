@@ -3,8 +3,8 @@ name: Excavator
 on:
   workflow_dispatch:
   schedule:
-    # Daily at 03:00 UTC = 08:30 IST
-    - cron: '0 3 * * *'
+    # Daily at 03:17 UTC = 08:47 IST (avoids top-of-hour scheduling congestion)
+    - cron: '17 3 * * *'
 
 # Only this repository; open a PR instead of pushing to main.
 permissions:
@@ -22,6 +22,22 @@ jobs:
     steps:
       - name: Checkout bucket
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Validate PowerShell syntax before setup
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $scripts = Get-ChildItem scripts -Filter '*.ps1' -File -Recurse
+          foreach ($script in $scripts) {
+            $tokens = $null
+            $parseErrors = $null
+            [void][System.Management.Automation.Language.Parser]::ParseFile(
+              $script.FullName, [ref]$tokens, [ref]$parseErrors
+            )
+            if ($parseErrors.Count -gt 0) {
+              $parseErrors | ForEach-Object { Write-Host "::error file=$($script.Name)::$($_.Message)" }
+              throw "PowerShell parsing failed: $($script.FullName)"
+            }
+          }
       - name: Install Scoop
         shell: pwsh
         run: |

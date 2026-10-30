@@ -27,7 +27,7 @@ foreach ($file in $files) {
 $checkErrors = @()
 foreach ($file in $files) {
     Write-Host "Checking $($file.BaseName)"
-    & pwsh -NoProfile -File $checkver -App $file.BaseName -Dir $bucket -Update -ThrowError
+    & pwsh -NoProfile -File $checkver -App $file.FullName -Update -ThrowError
     if ($LASTEXITCODE -ne 0) { $checkErrors += "$($file.BaseName): checkver exited $LASTEXITCODE" }
 }
 $changed = @(git diff --name-only -- bucket | Where-Object { $_ -match '^bucket/.+\.json$' } |
@@ -61,12 +61,13 @@ foreach ($app in $changed) {
         $tests[$app] = 'SKIPPED (7zip unavailable)'
         continue
     }
-    $installed = $false
     try {
-        Write-Host "Installing updated $app from local manifest..."
-        & scoop install "./bucket/$app.json"
+        # Passing a resolved absolute file path avoids Scoop treating './bucket/...'
+        # as a 'bucket/app' identifier. Never register the repository as a bucket.
+        $manifestFile = (Resolve-Path -LiteralPath (Join-Path $bucket "$app.json")).Path
+        Write-Host "Installing updated $app from manifest $manifestFile"
+        & scoop install $manifestFile
         if ($LASTEXITCODE -ne 0) { throw "scoop install failed ($LASTEXITCODE)" }
-        $installed = $true
 
         $prefixLines = @(scoop prefix $app)
         if ($LASTEXITCODE -ne 0 -or $prefixLines.Count -eq 0) { throw 'scoop prefix failed' }
@@ -94,19 +95,12 @@ foreach ($app in $changed) {
                 throw "Expected executable missing: $exe"
             }
         }
+        # No uninstall: the Windows runner is discarded after this job.
         $tests[$app] = 'PASS (install and executable)'
         Write-Host "Verified $app in $prefix"
     } catch {
         $tests[$app] = 'FAIL'
         $problems += ('{0}: {1}' -f $app, $_.Exception.Message)
-    } finally {
-        if ($installed) {
-            & scoop uninstall $app | Out-Host
-            if ($LASTEXITCODE -ne 0) {
-                $tests[$app] = 'FAIL (uninstall)'
-                $problems += "$app: scoop uninstall exited $LASTEXITCODE"
-            }
-        }
     }
 }
 
@@ -123,8 +117,8 @@ foreach ($app in $changed) {
 }
 $report += @('', '### Validation', '',
     ('- Offline manifest tests: {0}' -f $(if ($offlinePassed) { 'PASS' } else { 'FAIL' })),
-    '- Changed apps: installed with Scoop, checked for expected executables, and uninstalled on Windows x64.',
-    '- Unchanged apps are not reinstalled; graphical launch and ARM64 execution are not tested.', '',
+    '- Changed apps: installed via their absolute local JSON manifest paths and checked for expected executables on Windows x64.',
+    '- No bucket registration or uninstall is needed on the ephemeral runner; graphical launch and ARM64 execution are not tested.', '',
     '### Upstream download URLs and SHA-256', '')
 foreach ($app in $changed) {
     $report += "#### $app"
