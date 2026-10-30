@@ -1,12 +1,12 @@
 {
-    "version": "1.6.1074",
+    "version": "1.6.1324",
     "description": "AI voice-to-text dictation app for Windows",
     "homepage": "https://wisprflow.ai/",
     "license": "Proprietary",
     "architecture": {
         "64bit": {
-            "url": "https://dl.wisprflow.com/wispr-flow/win32/x64/Wispr%20Flow%20Setup-v1.6.1074.exe#/dl.7z",
-            "hash": "ab1cff99e48b009b75aa8c8af85de155f1510880ef7dca754b933f60abd54c9e"
+            "url": "https://dl.wisprflow.com/wispr-flow/win32/x64/Wispr%20Flow%20Setup-v1.6.1324.exe#/dl.7z",
+            "hash": "b25c22c01ff9bc6c6d03ec65f68a68b4487fee9de9cdb779a1d771c9f92886c6"
         }
     },
     "pre_install": [
