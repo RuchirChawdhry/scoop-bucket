@@ -48,4 +48,17 @@ Invoke-Maintenance
 Assert-Test ((Get-Content -Raw $env:GITHUB_STEP_SUMMARY).Contains('No changes')) 'No-change flow did not summarize'
 Remove-Item -LiteralPath $env:GITHUB_STEP_SUMMARY -ErrorAction SilentlyContinue
 
+# Pending proposals must short-circuit before checking upstream.
+function Get-PendingPR { param($Repo) return [pscustomobject]@{ url = 'https://github.com/owner/repo/pull/12' } }
+function Update-Manifests { throw 'Must not check upstream when a PR is open' }
+Invoke-Maintenance
+Assert-Test ((Get-Content -Raw $env:GITHUB_STEP_SUMMARY).Contains('pull/12')) 'Pending PR did not short-circuit'
+
+# Failed upstream checks must fail the run, even when no manifests changed.
+function Get-PendingPR { param($Repo) return $null }
+function Update-Manifests { param($Bucket, $Checkver) return [pscustomobject]@{ Changes = @(); Errors = @('upstream unavailable') } }
+$failedAsExpected = $false
+try { Invoke-Maintenance } catch { $failedAsExpected = $_.Exception.Message.Contains('upstream unavailable') }
+Assert-Test $failedAsExpected 'No-change run must surface failed release checks'
+
 Write-Host 'PowerShell updater behavior tests passed.'
