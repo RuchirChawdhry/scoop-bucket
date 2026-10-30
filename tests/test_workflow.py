@@ -12,7 +12,7 @@ class WorkflowTests(unittest.TestCase):
         yaml = WORKFLOW.read_text(encoding="utf-8")
         self.assertIn("schedule:", yaml)
         self.assertIn("workflow_dispatch:", yaml)
-        self.assertIn("0 3 * * *", yaml)
+        self.assertIn("17 3 * * *", yaml)
         self.assertNotIn("workflow_run:", yaml)
         self.assertNotIn("pull_request:", yaml)
         self.assertNotIn("\n  push:", yaml)
@@ -38,6 +38,17 @@ class WorkflowTests(unittest.TestCase):
         self.assertIn("automation/scoop-", script)
         self.assertIn("git push origin", script)
         self.assertNotIn("git push origin main", script)
+
+    def test_powershell_syntax_is_checked_before_install(self):
+        yaml = WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn("Language.Parser]::ParseFile", yaml)
+        self.assertLess(yaml.index("Validate PowerShell syntax"), yaml.index("Install Scoop"))
+
+    def test_no_ambiguous_powershell_colon_expansions(self):
+        import re
+        script = UPDATE.read_text(encoding="utf-8")
+        problematic = re.findall(r"\$[A-Za-z_]\w*:(?![A-Za-z_0-9])", script)
+        self.assertEqual([], problematic, "PowerShell interprets $name: as a scope qualifier")
 
     def test_no_separate_validator_workflow(self):
         self.assertFalse((ROOT / ".github/workflows/validate.yml").exists())

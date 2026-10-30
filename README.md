@@ -22,13 +22,15 @@ scoop update '*'
 
 ## Automatic maintenance: review first
 
-**Actions > Excavator** runs **every morning at 08:30 IST** (03:00 UTC), or manually with **Run workflow**. One standard **`windows-2025` job** handles the entire maintenance process:
+**Actions > Excavator** runs **every morning at 08:47 IST** (03:17 UTC), or manually with **Run workflow**. One standard **`windows-2025` job** handles the entire maintenance process:
 
 1. Installs Scoop in the ephemeral Windows runner. Scoop's native `checkver.ps1 -Update` checks upstream versions, URLs and hashes for all six manifests.
 2. If no manifests changed, the job finishes without opening a pull request.
 3. If changes exist, the **same Windows job** runs offline Python tests and installs, verifies expected executables, and uninstalls **only the updated applications**. Failed checks are included in the proposal.
 4. It pushes updated JSON files to a new `automation/scoop-<run-id>` branch **in this repository** and creates a detailed PR targeting **this repository's `main`**. Each PR includes old/new versions, download URLs, SHA-256 hashes, validation outcomes, failures, and the Actions run URL. **Nothing merges automatically.**
 5. If a prior automated update PR remains open, the next run skips creating a duplicate. Review, merge or close that PR first.
+
+GitHub Actions can defer or drop scheduled jobs during load, particularly at the start of an hour. The off-hour minute reduces the likelihood of queueing but **does not guarantee an exact start time**. See [GitHub's schedule documentation](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule).
 
 The workflow has only **two triggers**, the daily schedule and optional manual dispatch. There are no push, pull-request, or workflow-completion triggers, and no separately billed validator job.
 

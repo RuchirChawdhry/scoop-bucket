@@ -104,7 +104,7 @@ foreach ($app in $changed) {
             & scoop uninstall $app | Out-Host
             if ($LASTEXITCODE -ne 0) {
                 $tests[$app] = 'FAIL (uninstall)'
-                $problems += "$app: scoop uninstall exited $LASTEXITCODE"
+                $problems += "${app}: scoop uninstall exited $LASTEXITCODE"
             }
         }
     }
