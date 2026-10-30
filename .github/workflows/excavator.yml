@@ -26,7 +26,7 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $scripts = Get-ChildItem scripts -Filter '*.ps1' -File -Recurse
+          $scripts = Get-ChildItem scripts,tests -Filter '*.ps1' -File -Recurse
           foreach ($script in $scripts) {
             $tokens = $null
             $parseErrors = $null
@@ -38,6 +38,9 @@ jobs:
               throw "PowerShell parsing failed: $($script.FullName)"
             }
           }
+      - name: Test updater behavior
+        shell: pwsh
+        run: ./tests/test_update.ps1
       - name: Install Scoop
         shell: pwsh
         run: |

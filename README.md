@@ -77,6 +77,9 @@ These are personal-use recipes. Upstream installer contents, URLs, feed layouts,
 
 ```powershell
 python -m unittest discover -s tests -v
+pwsh -NoProfile -File ./tests/test_update.ps1
 ```
+
+The updater is organized as small PowerShell functions for PR discovery, manifest updates, installation verification, report formatting, and PR publishing. The separate PowerShell behavior tests run on the Windows Actions runner before Scoop is installed.
 
 The updater continues checking remaining manifests after an individual version check fails. If any manifest changes, failures are included in the proposal report and the job is marked failed after PR creation. If no manifest changes but an upstream check fails, the job fails without creating a PR.
