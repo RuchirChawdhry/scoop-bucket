@@ -1,0 +1,27 @@
+name: Propose new Scoop package releases
+
+on:
+  schedule:
+    # 10:17 IST, after the existing 08:47 IST Excavator run
+    - cron: '47 4 * * *'
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'packages.json'
+      - '.github/workflows/promote.yml'
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: scoop-package-promotion
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    uses: RuchirChawdhry/ci-workflows/.github/workflows/package-promotion.yml@feat/package-promotion
+    with:
+      ecosystem: scoop
+      catalog: packages.json
+      dry-run: ${{ github.event_name == 'pull_request' }
