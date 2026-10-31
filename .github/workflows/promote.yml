@@ -24,4 +24,4 @@ jobs:
     with:
       ecosystem: scoop
       catalog: packages.json
-      dry-run: ${{ github.event_name == 'pull_request' }
+      dry-run: ${{ github.event_name == 'pull_request' }}
