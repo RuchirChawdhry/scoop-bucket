@@ -124,10 +124,11 @@ auto-merge.** The bot reuses the repository-scoped GitHub Actions token.
 Ensure **Settings > Actions > General > Workflow permissions >
 Allow GitHub Actions to create and approve pull requests** remains enabled.
 
-Automatic PRs made using `GITHUB_TOKEN` do not trigger the repository's
-usual PR checks. The proposer validates generated JSON before creating the PR,
-and the application's own release CI should independently validate real
-installation. Review the proposed URL/hash and install behavior before merging.
+GitHub can queue PR checks for `GITHUB_TOKEN`-created proposals, but they
+require a maintainer to select **Approve workflows to run**. The proposer
+validates generated JSON before creating the PR, and the application's release
+CI should independently validate real installation. Review URL/hash and
+installation evidence before merging.
 
 The shared engine lives in
 [ci-workflows](https://github.com/RuchirChawdhry/ci-workflows).
