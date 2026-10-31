@@ -1,0 +1,36 @@
+name: Validate personal Scoop manifests
+
+on:
+  pull_request:
+    paths:
+      - 'bucket/**'
+      - 'packages.json'
+      - '.github/workflows/promote.yml'
+      - '.github/workflows/validate-packages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-slim
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Check catalogs and all Scoop JSON manifests
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          catalog = json.loads(Path("packages.json").read_text())
+          assert catalog["schema"] == 1
+          assert isinstance(catalog["packages"], list)
+          for path in sorted(Path("bucket").glob("*.json")):
+              item = json.loads(path.read_text())
+              assert isinstance(item["version"], str), path
+              assert "url" in item or "architecture" in item, path
+          PY

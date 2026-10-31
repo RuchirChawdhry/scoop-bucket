@@ -83,3 +83,51 @@ pwsh -NoProfile -File ./tests/test_update.ps1
 The updater is organized as small PowerShell functions for PR discovery, manifest updates, installation verification, report formatting, and PR publishing. The separate PowerShell behavior tests run on the Windows Actions runner before Scoop is installed.
 
 The updater continues checking remaining manifests after an individual version check fails. If any manifest changes, failures are included in the proposal report and the job is marked failed after PR creation. If no manifest changes but an upstream check fails, the job fails without creating a PR.
+
+
+## Automatic registration of our own CLI releases
+
+Alongside the existing **Excavator** updater, a separate workflow monitors
+our public GitHub Releases and can propose a **new first-time Scoop manifest**.
+
+- Add each public CLI repository once to [packages.json](packages.json).
+- Every day at **10:17 IST**, it checks the latest stable public release,
+  downloads the configured portable Windows `.exe`, calculates SHA-256
+  and generates or refreshes `bucket/<name>.json`.
+- If anything actually changed, it opens a review-only PR in **this bucket**.
+- If an Excavator PR or earlier promotion PR is still open, the promotion
+  workflow defers to avoid competing changes.
+- The existing 08:47 IST Excavator workflow continues handling vendor app
+  version updates and normal Scoop `checkver`/`autoupdate` maintenance.
+
+Catalog example (add inside the `packages` list **only after a real
+public release is available**):
+
+```json
+{
+  "name": "example-cli",
+  "repository": "OWNER/PUBLIC-REPO",
+  "asset": "example-cli.exe",
+  "binary": "example-cli.exe",
+  "description": "A command-line application",
+  "homepage": "https://github.com/OWNER/PUBLIC-REPO",
+  "license": "MIT"
+}
+```
+
+The catalog starts empty; no fake packages are published. New packages
+currently require a single portable Windows executable. Both the public
+asset URL and archive hash are verified in the shared generator.
+
+**No official Scoop buckets are contacted for publishing, and PRs never
+auto-merge.** The bot reuses the repository-scoped GitHub Actions token.
+Ensure **Settings > Actions > General > Workflow permissions >
+Allow GitHub Actions to create and approve pull requests** remains enabled.
+
+Automatic PRs made using `GITHUB_TOKEN` do not trigger the repository's
+usual PR checks. The proposer validates generated JSON before creating the PR,
+and the application's own release CI should independently validate real
+installation. Review the proposed URL/hash and install behavior before merging.
+
+The shared engine lives in
+[ci-workflows](https://github.com/RuchirChawdhry/ci-workflows).
