@@ -1,13 +1,13 @@
 {
-    "version": "1.12.0",
+    "version": "1.14.2",
     "description": "Toggl desktop app for Windows",
     "homepage": "https://docs.toggl.com/toggl-2-0-desktop-app",
     "license": {
         "identifier": "Proprietary"
     },
     "##": "The NSIS setup contains an app-64.7z bundle; unpack it into Scoop's managed directory.",
-    "url": "https://toggl.com/toggl/desktop/downloads/Toggl-Setup-1.12.0.exe#/dl.7z",
-    "hash": "2ab4144b5ccd78537d45568ba6667ce07446912ce95276c7d8ebe835a13f9a56",
+    "url": "https://toggl.com/toggl/desktop/downloads/Toggl-Setup-1.14.2.exe#/dl.7z",
+    "hash": "52a4edd8c6cb545e727568bf610478532d71a779507f5d08e63668070424c3ef",
     "pre_install": [
         "Expand-7zipArchive \"$dir\\`$PLUGINSDIR\\app-64.7z\" \"$dir\"",
         "if (!(Test-Path -LiteralPath (Join-Path $dir 'Toggl 2.0.exe'))) { throw 'Toggl 2.0.exe was not found after extraction.' }",
