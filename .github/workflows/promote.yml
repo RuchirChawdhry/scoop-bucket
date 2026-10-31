@@ -20,7 +20,7 @@ concurrency:
 
 jobs:
   promote:
-    uses: RuchirChawdhry/ci-workflows/.github/workflows/package-promotion.yml@feat/package-promotion
+    uses: RuchirChawdhry/ci-workflows/.github/workflows/package-promotion.yml@8cdae737d06cc0950d84023ff5358711717d7b25
     with:
       ecosystem: scoop
       catalog: packages.json
