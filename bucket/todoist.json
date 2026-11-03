@@ -1,5 +1,5 @@
 {
-    "version": "9.36.1",
+    "version": "9.36.2",
     "description": "Todoist desktop app for Windows",
     "homepage": "https://todoist.com/",
     "license": {
@@ -9,12 +9,12 @@
     "##": "The NSIS setup contains an app-*.7z bundle; unpack it into Scoop's managed directory.",
     "architecture": {
         "64bit": {
-            "url": "https://electron-dl.todoist.net/windows/Todoist-win32-9.36.1-x64-latest.exe#/dl.7z",
-            "hash": "0bd623106ddaa2865eb93b3cf6b170889bb77b3add4b3db44313d1bb19bdc4b0"
+            "url": "https://electron-dl.todoist.net/windows/Todoist-win32-9.36.2-x64-latest.exe#/dl.7z",
+            "hash": "2ca2d3e51c750eb0c3ee56195ceb6b3a0b94dfc7fda95add4ba44fb0739617c8"
         },
         "arm64": {
-            "url": "https://electron-dl.todoist.net/windows/Todoist-win32-9.36.1-arm64-latest.exe#/dl.7z",
-            "hash": "241e719afb60b07076dc1e53ed3ba6a72b582f9fc242cedec9359c740476b5b7"
+            "url": "https://electron-dl.todoist.net/windows/Todoist-win32-9.36.2-arm64-latest.exe#/dl.7z",
+            "hash": "e6d91eb6cd76fbefc3f8900c791d989aea3acfb62e173aeaf5c78f808eadf6e1"
         }
     },
     "pre_install": [
